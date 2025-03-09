@@ -65,7 +65,7 @@ const Editor = () => {
 
         {/* Right sidebar with code generation */}
         <ResizablePanel defaultSize={35} minSize={20}>
-          <CodeGenerator nodes={nodes} />
+          <CodeGenerator nodes={nodes} edges={edges} />
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

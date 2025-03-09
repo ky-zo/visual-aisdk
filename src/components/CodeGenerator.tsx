@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Node } from "reactflow";
+import { Node, Edge } from "reactflow";
 
 // Helper types for node data
 type StreamTextNodeData = {
@@ -24,10 +24,43 @@ type NodeData = StreamTextNodeData | ToolNodeData;
 
 interface CodeGeneratorProps {
   nodes: Node<NodeData>[];
+  edges: Edge[];
 }
 
-const CodeGenerator = ({ nodes }: CodeGeneratorProps) => {
+const CodeGenerator = ({ nodes, edges }: CodeGeneratorProps) => {
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
+
+  // Helper function to find tools connected to a StreamText node
+  const getConnectedToolNodes = () => {
+    // First find streamText nodes
+    const streamTextNodes = nodes.filter((node) => node.type === "streamText");
+
+    if (streamTextNodes.length === 0) return [];
+
+    // Find all tool nodes connected to any streamText node
+    const connectedToolIds = new Set<string>();
+
+    edges.forEach((edge) => {
+      const sourceNode = nodes.find((node) => node.id === edge.source);
+      const targetNode = nodes.find((node) => node.id === edge.target);
+
+      // Check if this edge connects a streamText node to a tool node or vice versa
+      if (
+        (sourceNode?.type === "streamText" && targetNode?.type === "tool") ||
+        (sourceNode?.type === "tool" && targetNode?.type === "streamText")
+      ) {
+        // Add the tool node ID to our set
+        const toolNodeId =
+          sourceNode?.type === "tool" ? sourceNode.id : targetNode?.id;
+        if (toolNodeId) connectedToolIds.add(toolNodeId);
+      }
+    });
+
+    // Return the connected tool nodes
+    return nodes.filter(
+      (node) => node.type === "tool" && connectedToolIds.has(node.id)
+    );
+  };
 
   // Generate code based on the nodes
   const generateCode = () => {
@@ -39,7 +72,8 @@ const CodeGenerator = ({ nodes }: CodeGeneratorProps) => {
 
     // Extract different node types
     const streamTextNodes = nodes.filter((node) => node.type === "streamText");
-    const toolNodes = nodes.filter((node) => node.type === "tool");
+    // Get only the tool nodes that are connected to streamText nodes
+    const connectedToolNodes = getConnectedToolNodes();
 
     // Start building code
     let code = "";
@@ -62,7 +96,7 @@ const CodeGenerator = ({ nodes }: CodeGeneratorProps) => {
       code += `import { openai } from "@ai-sdk/openai";\n`;
     }
 
-    if (toolNodes.length > 0) {
+    if (connectedToolNodes.length > 0) {
       code += `import { z } from 'zod';\n`;
       code += `import { generateUUID } from '@/lib/utils';\n`;
       code += `import { DataStreamWriter, tool } from 'ai';\n`;
@@ -73,8 +107,8 @@ const CodeGenerator = ({ nodes }: CodeGeneratorProps) => {
     }
 
     // Add tool definitions
-    if (toolNodes.length > 0) {
-      toolNodes.forEach((toolNode) => {
+    if (connectedToolNodes.length > 0) {
+      connectedToolNodes.forEach((toolNode) => {
         const data = toolNode.data as ToolNodeData;
 
         code += `interface ${data.name}Props {\n`;
@@ -110,8 +144,8 @@ const CodeGenerator = ({ nodes }: CodeGeneratorProps) => {
     code += `  try {\n`;
     code += `    const { messages }: { messages: Array<Message> } = await request.json();\n\n`;
 
-    // Add authentication if there are tools
-    if (toolNodes.length > 0) {
+    // Add authentication if there are connected tools
+    if (connectedToolNodes.length > 0) {
       code += `    const session = await auth();\n\n`;
       code += `    if (!session || !session.user) {\n`;
       code += `      return new Response('Unauthorized', { status: 401 });\n`;
@@ -137,10 +171,10 @@ const CodeGenerator = ({ nodes }: CodeGeneratorProps) => {
       }
       code += `          maxSteps: ${data.maxSteps},\n`;
 
-      // Add tool integration if there are tools
-      if (toolNodes.length > 0) {
+      // Add tool integration if there are connected tools
+      if (connectedToolNodes.length > 0) {
         code += `          tools: {\n`;
-        toolNodes.forEach((toolNode) => {
+        connectedToolNodes.forEach((toolNode) => {
           const toolData = toolNode.data as ToolNodeData;
           code += `            ${toolData.name}: ${toolData.name}({ session, dataStream }),\n`;
         });
