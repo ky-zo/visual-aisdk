@@ -398,19 +398,6 @@ export const ProviderPicker = ({
           ))}
         </select>
       </div>
-
-      {selectedModel && selectedProvider && (
-        <div className="text-xs text-gray-500 mt-1">
-          <div className="font-mono bg-gray-50 p-1 rounded border">
-            {PROVIDER_FORMATS[
-              selectedProvider as keyof typeof PROVIDER_FORMATS
-            ]?.format(selectedModel) ||
-              `${
-                selectedProvider.split("/").pop() || "provider"
-              }('${selectedModel}')`}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

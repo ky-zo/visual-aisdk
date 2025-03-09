@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Node } from "reactflow";
 
 // Helper types for node data
@@ -27,12 +27,12 @@ interface CodeGeneratorProps {
 }
 
 const CodeGenerator = ({ nodes }: CodeGeneratorProps) => {
+  const [selectedLine, setSelectedLine] = useState<number | null>(null);
+
   // Generate code based on the nodes
   const generateCode = () => {
     if (nodes.length === 0) {
       return `// Drag and drop nodes to generate code
-import { streamText, createDataStreamResponse } from 'ai';
-import { openai } from "@ai-sdk/openai";
 
 // Add StreamText and Tool nodes to generate a complete API route`;
     }
@@ -239,9 +239,28 @@ import { openai } from "@ai-sdk/openai";
         </button>
       </div>
 
-      <pre className="bg-gray-900 text-gray-100 p-4 rounded-md overflow-auto text-xs font-mono flex-1">
-        <code>{generateCode()}</code>
-      </pre>
+      <div className="bg-gray-900 text-gray-100 p-4 rounded-md overflow-auto text-xs font-mono flex-1">
+        <pre>
+          <code>
+            {generateCode()
+              .split("\n")
+              .map((line, i) => (
+                <div
+                  key={i}
+                  className={`${
+                    selectedLine === i ? "bg-gray-800" : ""
+                  } hover:bg-gray-800 cursor-pointer`}
+                  onClick={() => setSelectedLine(i)}
+                >
+                  <span className="text-gray-500 inline-block w-8 text-right mr-2">
+                    {i + 1}
+                  </span>
+                  {line || "\n"}
+                </div>
+              ))}
+          </code>
+        </pre>
+      </div>
     </div>
   );
 };
